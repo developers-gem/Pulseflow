@@ -18,19 +18,62 @@ const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 let pidCounter = null;
 
+// async function nextPatientCode() {
+//   if (pidCounter == null) {
+//     const last = await Patient.findOne().sort({ createdAt: -1 });
+//     pidCounter = last?.patientCode ? parseInt(last.patientCode.split("-")[1], 10) : 1000;
+//   }
+//   pidCounter += 1;
+//   return `P-${pidCounter}`;
+// }
+
+
+///* we can replace with the upper one */
 async function nextPatientCode() {
-  if (pidCounter == null) {
+  while (true) {
     const last = await Patient.findOne().sort({ createdAt: -1 });
-    pidCounter = last?.patientCode ? parseInt(last.patientCode.split("-")[1], 10) : 1000;
+
+    let nextNumber = 1001;
+
+    if (last?.patientCode) {
+      nextNumber = parseInt(last.patientCode.split("-")[1], 10) + 1;
+    }
+
+    const patientCode = `P-${nextNumber}`;
+
+    const exists = await Patient.exists({ patientCode });
+
+    if (!exists) {
+      return patientCode;
+    }
   }
-  pidCounter += 1;
-  return `P-${pidCounter}`;
 }
 
+// export function startSimulation(io, intervalMs = 4000) {
+//   const handle = setInterval(() => tick(io).catch((err) => console.error("Simulation tick error:", err.message)), intervalMs);
+//   return () => clearInterval(handle);
+// }
+
+let simulationRunning = false;
+
 export function startSimulation(io, intervalMs = 4000) {
-  const handle = setInterval(() => tick(io).catch((err) => console.error("Simulation tick error:", err.message)), intervalMs);
+  const handle = setInterval(async () => {
+    if (simulationRunning) return;
+
+    simulationRunning = true;
+
+    try {
+      await tick(io);
+    } catch (err) {
+      console.error("Simulation tick error:", err.message);
+    } finally {
+      simulationRunning = false;
+    }
+  }, intervalMs);
+
   return () => clearInterval(handle);
 }
+
 
 // This demo simulator only ever creates and mutates sourceSystem:"internal"
 // records. Anything ingested from the EHR (sourceSystem:"fhir"/"hl7v2") is
@@ -46,6 +89,13 @@ async function tick(io) {
   for (const a of ambulances) {
     a.etaMin = Math.max(0, a.etaMin - 1);
     if (a.etaMin === 0) a.status = "arrived";
+    await a.save();
+    const exists = await Ambulance.exists({ _id: a._id });
+
+    if (!exists) {
+      continue;
+    }
+
     await a.save();
     changed.ambulances.push(a);
 
