@@ -22,26 +22,62 @@ router.post("/register", async (req, res) => {
   }
 });
 
+// router.post("/login", async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     if (!email || !password) return res.status(400).json({ error: "email and password are required" });
+
+//     const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
+//     if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+//     const ok = await user.comparePassword(password);
+//     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+
+//     const token = signToken(user._id);
+//     res.json({ token, user: user.toSafeObject() });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+// router.get("/me", requireAuth, (req, res) => {
+//   res.json({ user: req.user.toSafeObject() });
+// });
+
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "email and password are required" });
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase(),
+    }).select("+password");
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const ok = await user.comparePassword(password);
-    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const token = signToken(user._id);
-    res.json({ token, user: user.toSafeObject() });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
-router.get("/me", requireAuth, (req, res) => {
-  res.json({ user: req.user.toSafeObject() });
+    res.json({
+      token,
+      user: user.toSafeObject(),
+    });
+  } catch (err) {
+    console.error("Login Error:", err);   // <-- Add this line
+    res.status(500).json({
+      error: err.message,
+    });
+  }
 });
 
 export default router;
